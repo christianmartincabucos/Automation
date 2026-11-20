@@ -1,9 +1,27 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
+const path = require('path');
 
 const TARGET_URL = 'https://cb3newsmonitoringdashboard.lovable.app/lokal/langtad';
 // Batch size defaults to 45 tabs (configurable via TABS=... environment variable)
 const TAB_COUNT = parseInt(process.env.TABS || '45', 10);
+
+/**
+ * Removes all screenshot image files from the screenshots folder
+ */
+function clearScreenshots() {
+  const dir = path.join(__dirname, 'screenshots');
+  if (fs.existsSync(dir)) {
+    const files = fs.readdirSync(dir);
+    for (const file of files) {
+      if (/\.(png|jpe?g)$/i.test(file)) {
+        try {
+          fs.unlinkSync(path.join(dir, file));
+        } catch (e) {}
+      }
+    }
+  }
+}
 
 /**
  * Ensures YouTube embed starts playing and runs at max supported speed (2.0x)
@@ -139,6 +157,7 @@ async function runVideoSession(page, index, batch) {
 test('Play and monitor full-view confirmation infinitely in batches', async ({ browser }) => {
   test.setTimeout(0); // 0 disables test timeout so the infinite loop never gets killed
   fs.mkdirSync('screenshots', { recursive: true });
+  clearScreenshots();
 
   let batch = 1;
 
@@ -181,6 +200,10 @@ test('Play and monitor full-view confirmation infinitely in batches', async ({ b
 
     // Close the entire context to wipe cache/storage and prevent memory leaks
     await context.close().catch(() => {});
+
+    // Delete screenshot images after every batch is done to save disk space
+    clearScreenshots();
+    console.log(`[CLEANUP] Deleted screenshot images for batch ${batch}.`);
 
     batch++;
 
